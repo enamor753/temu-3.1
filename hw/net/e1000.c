@@ -170,7 +170,56 @@ enum {
     defreg(VET),        defreg(RDTR),   defreg(RADV),   defreg(TADV),
     defreg(ITR),
 };
-static void log_packet(const uint8_t *buf, size_t size){
+
+
+static void log_packet_pcap(const uint8_t *buf, size_t size){
+    // return;
+    FILE * fp;
+
+    // time_t rawtime;
+    // struct tm * timeinfo;
+    // time ( &rawtime );
+    // timeinfo = localtime ( &rawtime );
+
+    fp = fopen ("packet_log.pcap","ab");//use time
+    
+    struct timeval tv;
+    unsigned int timestamp;
+    gettimeofday(&tv, NULL);
+    timestamp = tv.tv_sec;
+    fwrite( &timestamp, sizeof( timestamp ), 1, fp );
+
+    timestamp = tv.tv_usec;
+    fwrite( &timestamp, sizeof( timestamp ), 1, fp );
+    
+    // fwrite( &timestamp, sizeof( timestamp ), 1, fp );
+    
+    int Caplen;
+    if(size<=128){
+        Caplen = size;
+        fwrite( &Caplen, sizeof( Caplen ), 1, fp );
+        fwrite( &Caplen, sizeof( Caplen ), 1, fp );
+    }
+    else{
+        int len = size;
+        Caplen = 128;
+        fwrite( &Caplen, sizeof( Caplen ), 1, fp );
+        fwrite( &len, sizeof( len ), 1, fp );
+    }
+    int i=0;
+    char content;
+    for(i = 0;i<Caplen;i++){
+       
+        content = *(buf+i);
+        fwrite( &content, sizeof( content ), 1, fp );
+
+    }
+   
+    chmod("packet_log.pcap",0777);
+    fclose(fp);
+}
+static void log_packet_readable(const uint8_t *buf, size_t size){
+    return;
     FILE * fp;
 
     time_t rawtime;
@@ -196,15 +245,17 @@ static void log_packet(const uint8_t *buf, size_t size){
     fprintf(fp,"pdu: ");
     int i;
     for(i = 0;i<size;i++){
-        fprintf(fp, "%02x ",*(buf+i));
+        if(i%2==0)
+            fprintf(fp," ");
+        fprintf(fp, "%02x",*(buf+i));
     }
-    fprintf(fp,"-end\r\n");
+    fprintf(fp,"     -end\r\n");
     fprintf(fp,"---------------------------------------\r\n");
-    chmod("ref.txt",0777);
+    chmod("packet_log",0777);
     fclose(fp);
 }
 static void print_packet(const uint8_t *buf, size_t size){
-    //cliff
+    return;
 
     time_t rawtime;
     struct tm * timeinfo;
@@ -665,7 +716,8 @@ e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
         nc->info->receive(nc, buf, size);
     } else {
         print_packet(buf,size);
-        log_packet(buf,size);
+        log_packet_readable(buf,size);
+        log_packet_pcap(buf,size);
         qemu_send_packet(nc, buf, size);
     }
 }
@@ -1159,7 +1211,8 @@ static ssize_t
 e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     print_packet(buf,size);
-    log_packet(buf,size);
+    log_packet_readable(buf,size);
+    log_packet_pcap(buf,size);
     const struct iovec iov = {
         .iov_base = (uint8_t *)buf,
         .iov_len = size
@@ -1672,6 +1725,7 @@ typedef struct E1000Info {
 
 static void e1000_class_init(ObjectClass *klass, void *data)
 {
+
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     E1000BaseClass *e = E1000_DEVICE_CLASS(klass);

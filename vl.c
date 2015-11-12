@@ -2726,9 +2726,24 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size)
         exit(EXIT_FAILURE);
     }
 }
+static void create_logfile(void){
+    remove("packet_log.pcap");
+    FILE * fp;
+    long int header;
+    fp = fopen ("packet_log.pcap","ab");//use time
+    // const char *header = "d4c3 b2a1 0200 0400 0000 0000 0000 0000\nffff 0000 0100 0000 ";
+    header = 0x00040002a1b2c3d4;
+    fwrite( &header, sizeof( header ), 1, fp );
+    header = 0x0000000000000000;
+    fwrite( &header, sizeof( header ), 1, fp );
+    header = 0x000000010000ffff;
+    fwrite( &header, sizeof( header ), 1, fp );
 
+    fclose(fp);
+}
 int main(int argc, char **argv, char **envp)
 {
+    create_logfile();
     int i;
     int snapshot, linux_boot;
     const char *initrd_filename;
